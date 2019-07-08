@@ -15,146 +15,161 @@
 
 #include <dlfcn.h>
 
-int main(int argc, char** argv)
-{
-	const char* pLibFilename = nullptr;
-	std::shared_ptr<funcperf::IFunctionTest> pFunctionTest = nullptr;
+using namespace funcperf;
+using namespace funcperf::string;
 
-	funcperf::TestLength testLength = funcperf::TestLength::normalTest;
+static std::map<std::string, std::shared_ptr<IFunctionTest>> funcTestMap = {
+	// possible tests
+	{"memcpy", std::make_shared<MemcpyFunctionTest>()},
+	{"strcpy", std::make_shared<StrcpyFunctionTest>()},
+	{"strncpy", std::make_shared<StrncpyFunctionTest>()},
+	{"strcmp", std::make_shared<StrcmpFunctionTest>()}
+};
+
+
+[[noreturn]] void usage()
+{
+	std::cerr <<
+		"Usage: tester --lib <libFilename> --test <testId> "
+		"[--length short|normal|long] [--show all|failures]\n\n"
+		"Possible values for 'testId':\n";
+	for (const auto& kv : funcTestMap)
+		std::cerr << "\t" << kv.first << std::endl;
+	exit(1);
+}
+
+
+class Test
+{
+public:
+	~Test();
+	void parseArgs(int argc, char** argv);
+	void prepare();
+	void run();
+
+private:
+	std::string lib;
+	std::shared_ptr<IFunctionTest> ftest;
+	TestLength len = TestLength::normalTest;
 	bool showFailuresOnly = false;
 
-	std::map<std::string, std::shared_ptr<funcperf::IFunctionTest>> funcTestMap = {
-		// possible tests
-		{"memcpy", std::make_shared<funcperf::string::MemcpyFunctionTest>()},
-		{"strcpy", std::make_shared<funcperf::string::StrcpyFunctionTest>()},
-		{"strncpy", std::make_shared<funcperf::string::StrncpyFunctionTest>()},
-		{"strcmp", std::make_shared<funcperf::string::StrcmpFunctionTest>()},
-	};
+	void* soHandle = nullptr;
+	void* func = nullptr;
+};
 
-	// for now, using ugly homemade arg parsing, to avoid adding dependencies. I'm not proud of it, though
-	int curArg = 1;
-	bool cmdlineParseError = false;
-	while (curArg < argc) {
-		if (strcmp(argv[curArg], "--lib") == 0) {
-			curArg++;
 
-			if (curArg >= argc) {
-				cmdlineParseError = true;
-				break;
-			}
+void Test::parseArgs(int argc, char** argv)
+{
+	for (int i = 1; i < argc; i++) {
+		std::string arg = argv[i];
 
-			pLibFilename = argv[curArg];
+		if (arg == "--lib") {
+			if (++i >= argc)
+				usage();
+			lib = argv[i];
 
-		} else if (strcmp(argv[curArg], "--test") == 0) {
-			curArg++;
+		} else if (arg == "--test") {
+			arg = argv[++i];
+			auto it = funcTestMap.find(arg);
+			if (it == funcTestMap.end())
+				usage();
+			ftest = it->second;
 
-			auto findIt = funcTestMap.find(argv[curArg]);
-			if (findIt == funcTestMap.end()) {
-				cmdlineParseError = true;
-				break;
-			}
+		} else if (arg == "--length") {
+			if (++i >= argc)
+				usage();
 
-			pFunctionTest = findIt->second;
+			arg = argv[i];
+			if (arg == "short")
+				len = TestLength::shortTest;
+			else if (arg == "normal")
+				len = TestLength::normalTest;
+			else if (arg == "long")
+				len = TestLength::longTest;
+			else
+				usage();
 
-		} else if (strcmp(argv[curArg], "--length") == 0) {
-			curArg++;
-			if (curArg >= argc) {
-				cmdlineParseError = true;
-				break;
-			}
+		} else if (arg == "--show") {
+			if (++i >= argc)
+				usage();
 
-			if (strcmp(argv[curArg], "short") == 0) {
-				testLength = funcperf::TestLength::shortTest;
-
-			} else if (strcmp(argv[curArg], "normal") == 0) {
-				testLength = funcperf::TestLength::normalTest;
-
-			} else if (strcmp(argv[curArg], "long") == 0) {
-				testLength = funcperf::TestLength::longTest;
-
-			} else {
-				cmdlineParseError = true;
-				break;
-			}
-
-		} else if (strcmp(argv[curArg], "--show") == 0) {
-			curArg++;
-			if (curArg >= argc) {
-				cmdlineParseError = true;
-				break;
-			}
-
-			if (strcmp(argv[curArg], "all") == 0) {
+			arg = argv[i];
+			if (arg == "all")
 				showFailuresOnly = false;
-
-			} else if (strcmp(argv[curArg], "failures") == 0) {
+			else if (arg == "failures")
 				showFailuresOnly = true;
+			else
+				usage();
 
-			} else {
-				cmdlineParseError = true;
-				break;
-			}
-
-		} else  {
-			cmdlineParseError = true;
-			break;
-		}
-
-		curArg++;
+		} else
+			usage();
 	}
 
-	if (pLibFilename == nullptr || pFunctionTest == nullptr || cmdlineParseError) {
-		std::cerr << "Usage: " << argv[0] << " --lib <libFilename> --test <testId> [--length short|normal|long] [--show all|failures]" << std::endl;
-		std::cerr << std::endl;
-		std::cerr << "Possible values for 'testId':" << std::endl;
-		for (auto& kv : funcTestMap) {
-			std::cerr << "\t" << kv.first << std::endl;
-		}
+	if (!ftest || lib.empty())
+		usage();
+}
 
-		return 1;
+
+void Test::prepare()
+{
+	// load function to be tested
+	if (!lib.empty()) {
+		// load shared library
+		soHandle = dlopen(lib.c_str(), RTLD_NOW);
+		if (!soHandle)
+			throw std::runtime_error("Error loading shared library " + lib);
+
+		// get pointer to tested function
+		std::string fname = ftest->getFunctionName();
+		func = dlsym(soHandle, fname.c_str());
+		if (!func)
+			throw std::runtime_error("Symbol " + fname +
+				" not found in " + lib);
 	}
+}
 
-	// load shared library
-	void *soHandle = dlopen(pLibFilename, RTLD_NOW);
-	if (soHandle == nullptr) {
-		std::cerr << "Error loading shared library " << pLibFilename << std::endl;
 
-		return 2;
-	}
-
-	funcperf::TestRunner testRunner;
-
-	// get pointer to tested function
-	void* func = dlsym(soHandle, pFunctionTest->getFunctionName().c_str());
-	if (func == nullptr) {
-		std::cerr << "Symbol " << pFunctionTest->getFunctionName() << " not found in " << pLibFilename << std::endl;
-
-		dlclose(soHandle);
-		return 3;
-	}
-
-	auto testsParams = pFunctionTest->getTestsParams();
-
+void Test::run()
+{
 	bool printHeader = true;
-	for (auto& pTestParams : testsParams) {
-		bool testResult;
-
+	TestRunner testRunner;
+	for (const auto& param : ftest->getTestsParams()) {
 		if (printHeader) {
-			std::cout << "id\t" << pTestParams->getCSVHeaders("\t") << "\titerations\tavgNanos\ttestResult" << std::endl;
+			std::cout << "id\t" << param->getCSVHeaders("\t")
+				<< "\titerations\tavgNanos\ttestResult" << std::endl;
 			printHeader = false;
 		}
 
-		auto pTest = pFunctionTest->getTest(*pTestParams);
-		int iterations = pTestParams->getIterations(testLength);
-		int64_t nanos = testRunner.runTest(*pTest, func, iterations, &testResult);
+		auto test = ftest->getTest(*param);
+		int iterations = param->getIterations(len);
+		bool testResult;
+		int64_t nanos = testRunner.runTest(*test, func, iterations, &testResult);
 
-		if (showFailuresOnly == false || testResult == 0) {
-			std::cout << pTest->getId() << "\t" << pTestParams->getCSVValues("\t") << "\t" << iterations << "\t";
-			std::cout << nanos << "\t" << (testResult ? "SUCCESS" : "FAILURE") << std::endl;
+		if (showFailuresOnly == false || !testResult) {
+			std::cout << test->getId() << "\t"
+				<< param->getCSVValues("\t") << "\t"
+				<< iterations << "\t";
+			std::cout << nanos << "\t"
+				<< (testResult ? "SUCCESS" : "FAILURE")
+				<< std::endl;
 		}
 	}
+}
 
-	dlclose(soHandle);
+
+Test::~Test()
+{
+	if (soHandle)
+		dlclose(soHandle);
+}
+
+
+int main(int argc, char** argv)
+{
+	Test test;
+	test.parseArgs(argc, argv);
+	test.prepare();
+	test.run();
 
 	return 0;
 }

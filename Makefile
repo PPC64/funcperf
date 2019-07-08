@@ -1,7 +1,4 @@
-CXX=g++6
-
 CXXFLAGS+=-std=c++14 -I${.CURDIR}
-LDFLAGS+=-Wl,-rpath=/usr/local/lib/gcc6
 
 SUBDIRS=string
 .PATH.cpp : ${SUBDIRS}

@@ -50,7 +50,7 @@ public:
 private:
 	std::string lib;
 	std::shared_ptr<IFunctionTest> ftest;
-	TestLength len = TestLength::normalTest;
+	TestLength len = TestLength::shortTest;
 	bool showFailuresOnly = false;
 
 	void* soHandle = nullptr;
@@ -107,25 +107,24 @@ void Test::parseArgs(int argc, char** argv)
 
 	if (!ftest || lib.empty())
 		usage();
+
+	ftest->setLength(len);
 }
 
 
 void Test::prepare()
 {
-	// load function to be tested
-	if (!lib.empty()) {
-		// load shared library
-		soHandle = dlopen(lib.c_str(), RTLD_NOW);
-		if (!soHandle)
-			throw std::runtime_error("Error loading shared library " + lib);
+	// load shared library
+	soHandle = dlopen(lib.c_str(), RTLD_NOW);
+	if (!soHandle)
+		throw std::runtime_error("Error loading shared library " + lib);
 
-		// get pointer to tested function
-		std::string fname = ftest->getFunctionName();
-		func = dlsym(soHandle, fname.c_str());
-		if (!func)
-			throw std::runtime_error("Symbol " + fname +
-				" not found in " + lib);
-	}
+	// get pointer to tested function
+	std::string fname = ftest->getFunctionName();
+	func = dlsym(soHandle, fname.c_str());
+	if (!func)
+		throw std::runtime_error("Symbol " + fname +
+			" not found in " + lib);
 }
 
 

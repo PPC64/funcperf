@@ -13,9 +13,33 @@ enum class TestLength {
 class ITestParams
 {
 public:
-	virtual std::string getCSVHeaders(const std::string& sep) = 0;
-	virtual std::string getCSVValues(const std::string& sep) = 0;
-	virtual int getIterations(TestLength length) = 0;
+	ITestParams(const std::string& h, const std::string& v, int i) :
+		headers(h),
+		values(v),
+		iters(i)
+	{}
+
+	ITestParams() = default;
+
+	virtual std::string getCSVHeaders(const std::string& sep)
+	{
+		return headers;
+	}
+
+	virtual std::string getCSVValues(const std::string& sep)
+	{
+		return values;
+	}
+
+	virtual int getIterations(TestLength length)
+	{
+		return iters;
+	}
+
+private:
+	std::string headers;
+	std::string values;
+	int iters;
 };
 
 }

@@ -41,8 +41,7 @@ getFTest(const std::string& id)
 [[noreturn]] void usage()
 {
 	std::cerr <<
-		"Usage: tester --lib <libFilename> --test <testId> "
-		"[--length short|normal|long]\n\n"
+		"Usage: tester <libFilepath> <testId> [short|normal|long]\n\n"
 		"Possible values for 'testId':\n";
 	for (const char** id = ids; *id; id++)
 		std::cerr << "\t" << *id << std::endl;
@@ -73,41 +72,29 @@ private:
 
 void Test::parseArgs(int argc, char** argv)
 {
-	for (int i = 1; i < argc; i++) {
-		std::string arg = argv[i];
+	if (argc < 3 || argc > 4)
+		usage();
 
-		if (arg == "--lib") {
-			if (++i >= argc)
-				usage();
-			lib = argv[i];
+	lib = argv[1];
 
-		} else if (arg == "--test") {
-			arg = argv[++i];
-			fname = arg;
-			ftest = getFTest(arg);
-			if (!ftest)
-				usage();
-
-		} else if (arg == "--length") {
-			if (++i >= argc)
-				usage();
-
-			arg = argv[i];
-			if (arg == "short")
-				len = TestLength::shortTest;
-			else if (arg == "normal")
-				len = TestLength::normalTest;
-			else if (arg == "long")
-				len = TestLength::longTest;
-			else
-				usage();
-
-		} else
-			usage();
-	}
+	fname = argv[2];
+	ftest = getFTest(fname);
 
 	if (!ftest || lib.empty())
 		usage();
+
+	if (argc == 4) {
+		std::string arg = argv[3];
+
+		if (arg == "short")
+			len = TestLength::shortTest;
+		else if (arg == "normal")
+			len = TestLength::normalTest;
+		else if (arg == "long")
+			len = TestLength::longTest;
+		else
+			usage();
+	}
 
 	ftest->setLength(len);
 }

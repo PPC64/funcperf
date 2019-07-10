@@ -16,7 +16,7 @@ public:
 		return "STRNCPY_" + values("_");
 	}
 
-	std::string values(const char* sep = "\t") const override
+	std::string values(const char* sep) const override
 	{
 		std::ostringstream ss;
 		ss << bytesToCopy << sep << srcOffset << sep << dstOffset;
@@ -134,7 +134,7 @@ ITest* StrncpyFunctionTest::nextTest()
 		dstOffset = 0;
 		if (++srcOffset == 8) {
 			srcOffset = 0;
-			bytesToCopy += 1024;
+			bytesToCopy *= 2;
 			if (bytesToCopy > 8*1024*1024)
 				last = true;
 		}

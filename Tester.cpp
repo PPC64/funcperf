@@ -159,8 +159,8 @@ void Test::run()
 	if (ftest->compat)
 		runCompat();
 
-	std::cout << "id\t" << ftest->headers()
-		<< "\titerations\tavgNanos\ttestResult" << std::endl;
+	std::cout << "id\t\t" << ftest->headers()
+		<< "\titerations\tavgNanos" << std::endl;
 
 	while (ITest* test = ftest->nextTest()) {
 		int iterations = test->iterations(len);
@@ -168,10 +168,14 @@ void Test::run()
 		int64_t nanos;
 		std::tie(testResult, nanos) = runTest(*test, iterations);
 
-		std::cout << test->id() << "\t" << test->values() << "\t"
-			<< iterations << "\t" << nanos << "\t"
-			<< (testResult ? "SUCCESS" : "FAILURE")
-			<< std::endl;
+		std::cout << test->id() << "\t" << test->values("\t\t") << "\t\t"
+			<< iterations << "\t\t" << nanos << '\n';
+
+		if (!testResult) {
+			std::cout << "FAILURE!\n";
+			return;
+		}
+
 	}
 }
 
@@ -187,19 +191,18 @@ std::tuple<bool, int64_t> Test::runTest(ITest& test, int iterations)
 
 	for (int iteration = 0; iteration < iterations; iteration++) {
 		res = clock_gettime(CLOCK_MONOTONIC_PRECISE, &tp0);
-
 		test.run(func);
-
 		res |= clock_gettime(CLOCK_MONOTONIC_PRECISE, &tp1);
 
-		if (res == 0) {
-			uint64_t nano0 = (1000000000LL * tp0.tv_sec) + tp0.tv_nsec;
-			uint64_t nano1 = (1000000000LL * tp1.tv_sec) + tp1.tv_nsec;
-
-			nanos[totalValidMeasures++] = nano1 - nano0;
-			//totalValidMeasures++;
-			totalSum += (nano1 - nano0);
+		if (res != 0) {
+			std::cout << "clock_gettime() failed!\n";
+			exit(1);
 		}
+
+		uint64_t nano0 = (1000000000LL * tp0.tv_sec) + tp0.tv_nsec;
+		uint64_t nano1 = (1000000000LL * tp1.tv_sec) + tp1.tv_nsec;
+		nanos[totalValidMeasures++] = nano1 - nano0;
+		totalSum += (nano1 - nano0);
 
 		if (iteration == 0)
 			verifyResult = test.verify();

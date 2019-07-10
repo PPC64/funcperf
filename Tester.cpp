@@ -65,6 +65,7 @@ private:
 	std::shared_ptr<IFunctionTest> ftest;
 	TestLength len = TestLength::shortTest;
 
+	std::string fname;
 	void* soHandle = nullptr;
 	void* func = nullptr;
 };
@@ -82,6 +83,7 @@ void Test::parseArgs(int argc, char** argv)
 
 		} else if (arg == "--test") {
 			arg = argv[++i];
+			fname = arg;
 			ftest = getFTest(arg);
 			if (!ftest)
 				usage();
@@ -119,7 +121,6 @@ void Test::prepare()
 		throw std::runtime_error("Error loading shared library " + lib);
 
 	// get pointer to tested function
-	std::string fname = ftest->getFunctionName();
 	func = dlsym(soHandle, fname.c_str());
 	if (!func)
 		throw std::runtime_error("Symbol " + fname +

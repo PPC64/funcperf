@@ -6,11 +6,6 @@
 namespace funcperf {
 namespace string {
 
-std::string MemcpyFunctionTest::getFunctionName()
-{
-	return "memcpy";
-}
-
 std::vector<std::shared_ptr<funcperf::ITestParams>> MemcpyFunctionTest::getTestsParams()
 {
 	std::vector<std::shared_ptr<funcperf::ITestParams>> result;

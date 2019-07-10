@@ -15,11 +15,6 @@ public:
 		IFunctionTest(false)
 	{}
 
-	std::string getFunctionName() override
-	{
-		unimplemented();
-	}
-
 	std::vector<std::shared_ptr<ITestParams>> getTestsParams() override
 	{
 		unimplemented();

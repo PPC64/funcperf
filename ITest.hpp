@@ -30,6 +30,19 @@ public:
 		throw std::logic_error("Unimplemented!");
 	}
 
+	const std::string& aggrId() const
+	{
+		return _aggrId;
+	}
+
+	bool flush() const
+	{
+		return _flush;
+	}
+
+protected:
+	std::string _aggrId;
+	bool _flush = false;
 };
 
 }

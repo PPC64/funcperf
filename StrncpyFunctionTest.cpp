@@ -76,6 +76,18 @@ StrncpyTest::StrncpyTest(int b, int s, int d) :
 	strncpy(m_verifyBuffer.get() + dstOffset,
 		m_srcBuffer.get() + srcOffset,
 		bytesToCopy);
+
+	if (srcOffset == 0 && dstOffset == 0)
+		_aggrId = "both-aligned";
+	else if (srcOffset == 0)
+		_aggrId = "src-aligned";
+	else if (dstOffset == 0)
+		_aggrId = "dst-aligned";
+	else
+		_aggrId = "misaligned";
+
+	if (srcOffset == 7 && dstOffset == 7)
+		_flush = true;
 }
 
 

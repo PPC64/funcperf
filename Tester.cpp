@@ -140,6 +140,16 @@ void Test::runCompat()
 	}
 }
 
+namespace {
+
+struct Aggr {
+	std::string id;
+	std::string values;
+	int iterations;
+	int64_t nanos;
+};
+
+}
 
 void Test::run()
 {
@@ -149,21 +159,45 @@ void Test::run()
 	std::cout << "id\t\t" << ftest->headers()
 		<< "\titerations\tavgNanos" << std::endl;
 
+	std::map<std::string, std::vector<Aggr>> aggrNanos;
 	while (ITest* test = ftest->nextTest()) {
 		int iterations = test->iterations(len);
+		std::string aggrId = test->aggrId();
 		bool testResult;
 		int64_t nanos;
 		std::tie(testResult, nanos) = runTest(*test, iterations);
 
-		std::cout << test->id() << "\t" << test->values("\t\t") << "\t\t"
-			<< iterations << "\t\t" << nanos << '\n';
+		if (aggrId.empty() || !testResult)
+			std::cout << test->id() << "\t" << test->values("\t\t") << "\t\t"
+				<< iterations << "\t\t" << nanos << '\n';
+		else
+			aggrNanos[aggrId].push_back(
+				{test->id(), test->values("\t\t"), iterations, nanos});
 
 		if (!testResult) {
 			std::cout << "FAILURE!\n";
 			return;
 		}
 
+		if (test->flush()) {
+			for (auto& p : aggrNanos) {
+				int64_t sum = 0;
+				int iters = 0;
+				int64_t nanos;
+				for (const auto& a : p.second) {
+					iters += a.iterations;
+					sum += a.nanos;
+				}
+				nanos = sum / p.second.size();
+
+				auto a = p.second[0];
+				std::cout << a.id << "\t" << a.values << "\t\t"
+					<< iters << "\t\t" << nanos << '\n';
+			}
+			aggrNanos.clear();
+		}
 	}
+
 }
 
 

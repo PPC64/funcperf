@@ -1,18 +1,16 @@
 CXXFLAGS+=-std=c++14 -I${.CURDIR}
 
-SUBDIRS=string
-.PATH.cpp : ${SUBDIRS}
+SRCS=Tester.cpp \
+	MemcpyFunctionTest.cpp MemcpyTestParams.cpp MemcpyTest.cpp \
+	StrcpyFunctionTest.cpp StrcpyTest.cpp \
+	StrncpyFunctionTest.cpp \
+	StrcmpFunctionTest.cpp StrcmpTestParams.cpp StrcmpTest.cpp
 
-SRCS=TestRunner.cpp Tester.cpp
-
-# add sources from subdirs
-.for _subdir in ${SUBDIRS}
-.include <${_subdir}/Makefile.inc>
-.endfor
-
-OBJS=${SRCS:S/.cpp/.o/}
+OBJS:=${SRCS:S/.cpp/.o/}
 
 all: tester
+
+StrncpyFunctionTest.o: StrncpyFunctionTest.cpp StrncpyFunctionTest.hpp
 
 tester: ${OBJS}
 	${CXX} ${LDFLAGS} -o tester ${OBJS} ${LDLIBS}

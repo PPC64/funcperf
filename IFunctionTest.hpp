@@ -12,6 +12,10 @@ namespace funcperf {
 class IFunctionTest
 {
 public:
+	IFunctionTest(bool c = true) :
+		compat(c)
+	{}
+
 	virtual ~IFunctionTest() = default;
 
 	virtual std::string getFunctionName() = 0;
@@ -23,8 +27,32 @@ public:
 		this->len = len;
 	}
 
+	virtual std::string headers()
+	{
+		assertNotCompat();
+		unimplemented();
+	}
+
+	virtual ITest* nextTest()
+	{
+		assertNotCompat();
+		unimplemented();
+	}
+
+	bool compat;
 protected:
 	TestLength len;
+
+	void assertNotCompat()
+	{
+		if (!compat)
+			throw std::logic_error("!compat!");
+	}
+
+	[[noreturn]] void unimplemented()
+	{
+		throw std::logic_error("unimplemented!");
+	}
 };
 
 }

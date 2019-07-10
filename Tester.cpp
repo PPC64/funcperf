@@ -1,40 +1,51 @@
-#include "TestRunner.hpp"
-
 #include "IFunctionTest.hpp"
-#include "string/MemcpyFunctionTest.hpp"
-#include "string/StrcpyFunctionTest.hpp"
-#include "string/StrncpyFunctionTest.hpp"
-#include "string/StrcmpFunctionTest.hpp"
+#include "MemcpyFunctionTest.hpp"
+#include "StrcpyFunctionTest.hpp"
+#include "StrncpyFunctionTest.hpp"
+#include "StrcmpFunctionTest.hpp"
 
-#include <string>
-#include <iostream>
-#include <cstring>
 #include <cstdint>
+#include <cstring>
+#include <iostream>
 #include <map>
 #include <memory>
+#include <string>
+#include <tuple>
 
 #include <dlfcn.h>
 
 using namespace funcperf;
 using namespace funcperf::string;
 
-static std::map<std::string, std::shared_ptr<IFunctionTest>> funcTestMap = {
-	// possible tests
-	{"memcpy", std::make_shared<MemcpyFunctionTest>()},
-	{"strcpy", std::make_shared<StrcpyFunctionTest>()},
-	{"strncpy", std::make_shared<StrncpyFunctionTest>()},
-	{"strcmp", std::make_shared<StrcmpFunctionTest>()}
+
+static const char* ids[] = {
+	"memcpy", "strcpy", "strncpy", "strcmp", NULL
 };
 
+static std::unique_ptr<IFunctionTest>
+getFTest(const std::string& id)
+{
+
+	if (id == "memcpy")
+		return std::make_unique<MemcpyFunctionTest>();
+	else if (id == "strcpy")
+		return std::make_unique<StrcpyFunctionTest>();
+	else if (id == "strncpy")
+		return std::make_unique<StrncpyFunctionTest>();
+	else if (id == "strcmp")
+		return std::make_unique<StrcmpFunctionTest>();
+	else
+		return nullptr;
+}
 
 [[noreturn]] void usage()
 {
 	std::cerr <<
 		"Usage: tester --lib <libFilename> --test <testId> "
-		"[--length short|normal|long] [--show all|failures]\n\n"
+		"[--length short|normal|long]\n\n"
 		"Possible values for 'testId':\n";
-	for (const auto& kv : funcTestMap)
-		std::cerr << "\t" << kv.first << std::endl;
+	for (const char** id = ids; *id; id++)
+		std::cerr << "\t" << *id << std::endl;
 	exit(1);
 }
 
@@ -46,12 +57,13 @@ public:
 	void parseArgs(int argc, char** argv);
 	void prepare();
 	void run();
+	void runCompat();
+	std::tuple<bool, int64_t> runTest(ITest& test, int iterations);
 
 private:
 	std::string lib;
 	std::shared_ptr<IFunctionTest> ftest;
 	TestLength len = TestLength::shortTest;
-	bool showFailuresOnly = false;
 
 	void* soHandle = nullptr;
 	void* func = nullptr;
@@ -70,10 +82,9 @@ void Test::parseArgs(int argc, char** argv)
 
 		} else if (arg == "--test") {
 			arg = argv[++i];
-			auto it = funcTestMap.find(arg);
-			if (it == funcTestMap.end())
+			ftest = getFTest(arg);
+			if (!ftest)
 				usage();
-			ftest = it->second;
 
 		} else if (arg == "--length") {
 			if (++i >= argc)
@@ -86,18 +97,6 @@ void Test::parseArgs(int argc, char** argv)
 				len = TestLength::normalTest;
 			else if (arg == "long")
 				len = TestLength::longTest;
-			else
-				usage();
-
-		} else if (arg == "--show") {
-			if (++i >= argc)
-				usage();
-
-			arg = argv[i];
-			if (arg == "all")
-				showFailuresOnly = false;
-			else if (arg == "failures")
-				showFailuresOnly = true;
 			else
 				usage();
 
@@ -128,10 +127,9 @@ void Test::prepare()
 }
 
 
-void Test::run()
+void Test::runCompat()
 {
 	bool printHeader = true;
-	TestRunner testRunner;
 	for (const auto& param : ftest->getTestsParams()) {
 		if (printHeader) {
 			std::cout << "id\t" << param->getCSVHeaders("\t")
@@ -142,17 +140,73 @@ void Test::run()
 		auto test = ftest->getTest(*param);
 		int iterations = param->getIterations(len);
 		bool testResult;
-		int64_t nanos = testRunner.runTest(*test, func, iterations, &testResult);
+		int64_t nanos;
+		std::tie(testResult, nanos) = runTest(*test, iterations);
 
-		if (showFailuresOnly == false || !testResult) {
-			std::cout << test->getId() << "\t"
-				<< param->getCSVValues("\t") << "\t"
-				<< iterations << "\t";
-			std::cout << nanos << "\t"
-				<< (testResult ? "SUCCESS" : "FAILURE")
-				<< std::endl;
-		}
+		std::cout << test->getId() << "\t"
+			<< param->getCSVValues("\t") << "\t"
+			<< iterations << "\t";
+		std::cout << nanos << "\t"
+			<< (testResult ? "SUCCESS" : "FAILURE")
+			<< std::endl;
 	}
+}
+
+
+void Test::run()
+{
+	if (ftest->compat)
+		runCompat();
+
+	std::cout << "id\t" << ftest->headers()
+		<< "\titerations\tavgNanos\ttestResult" << std::endl;
+
+	while (ITest* test = ftest->nextTest()) {
+		int iterations = test->iterations(len);
+		bool testResult;
+		int64_t nanos;
+		std::tie(testResult, nanos) = runTest(*test, iterations);
+
+		std::cout << test->id() << "\t" << test->values() << "\t"
+			<< iterations << "\t" << nanos << "\t"
+			<< (testResult ? "SUCCESS" : "FAILURE")
+			<< std::endl;
+	}
+}
+
+
+std::tuple<bool, int64_t> Test::runTest(ITest& test, int iterations)
+{
+	int res;
+	struct timespec tp0, tp1;
+	int64_t nanos[iterations];
+	int64_t totalSum = 0;
+	int totalValidMeasures = 0;
+	bool verifyResult;
+
+	for (int iteration = 0; iteration < iterations; iteration++) {
+		res = clock_gettime(CLOCK_MONOTONIC_PRECISE, &tp0);
+
+		test.run(func);
+
+		res |= clock_gettime(CLOCK_MONOTONIC_PRECISE, &tp1);
+
+		if (res == 0) {
+			uint64_t nano0 = (1000000000LL * tp0.tv_sec) + tp0.tv_nsec;
+			uint64_t nano1 = (1000000000LL * tp1.tv_sec) + tp1.tv_nsec;
+
+			nanos[totalValidMeasures++] = nano1 - nano0;
+			//totalValidMeasures++;
+			totalSum += (nano1 - nano0);
+		}
+
+		if (iteration == 0)
+			verifyResult = test.verify();
+	}
+
+	// return an approximation of the median
+	std::sort(nanos, nanos + totalValidMeasures);
+	return std::tie(verifyResult, nanos[totalValidMeasures / 2]);
 }
 
 

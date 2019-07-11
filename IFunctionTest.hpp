@@ -39,6 +39,7 @@ public:
 	}
 
 	bool compat;
+	std::string sep;
 protected:
 	TestLength len;
 

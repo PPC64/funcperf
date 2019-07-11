@@ -18,6 +18,8 @@ using namespace funcperf;
 using namespace funcperf::string;
 
 
+static bool vs = true;
+
 static const char* ids[] = {
 	"memcpy", "strcpy", "strncpy", "strcmp", NULL
 };
@@ -41,7 +43,12 @@ getFTest(const std::string& id)
 [[noreturn]] void usage()
 {
 	std::cerr <<
-		"Usage: tester <libFilepath> <testId> [short|normal|long]\n\n"
+		"Usage: tester [flags] <libFilepath> <testId> [short|normal|long]\n"
+		"\n"
+		"Flags:\n"
+		"--no-vs: do not compare against libC impl\n"
+		"--csv: output in .csv format\n"
+		"\n"
 		"Possible values for 'testId':\n";
 	for (const char** id = ids; *id; id++)
 		std::cerr << "\t" << *id << std::endl;
@@ -52,39 +59,76 @@ getFTest(const std::string& id)
 class Test
 {
 public:
+	struct TestResult {
+		bool rc;
+		int64_t asm_nanos;
+		int64_t c_nanos;
+		double speedup;
+	};
+
+	struct Aggr {
+		std::string id;
+		std::string values;
+		int iterations;
+		TestResult res;
+	};
+
 	~Test();
 	void parseArgs(int argc, char** argv);
 	void prepare();
 	void run();
 	void runCompat();
-	std::tuple<bool, int64_t> runTest(ITest& test, int iterations);
+	TestResult runTest(ITest& test, int iterations);
 
 private:
 	std::string lib;
 	std::shared_ptr<IFunctionTest> ftest;
 	TestLength len = TestLength::shortTest;
+	std::string sep = "\t";
+	std::string dsep;
+	std::string tsep;
+	std::string qsep;
 
 	std::string fname;
 	void* soHandle = nullptr;
 	void* func = nullptr;
+
+	void printResult(const Aggr& aggr) const;
 };
 
 
 void Test::parseArgs(int argc, char** argv)
 {
-	if (argc < 3 || argc > 4)
+	if (argc < 3)
 		usage();
 
-	lib = argv[1];
+	int i = 1;
 
-	fname = argv[2];
+	// flags
+	if (argv[i] == std::string("--no-vs")) {
+		vs = false;
+		i++;
+	}
+	if (argv[i] == std::string("--csv")) {
+		sep = ",";
+		i++;
+	}
+
+	lib = argv[i++];
+
+	if (i >= argc)
+		usage();
+
+	fname = argv[i++];
 	ftest = getFTest(fname);
 
-	if (!ftest || lib.empty())
+	if (!ftest || lib.empty()) {
+		std::cerr << "ERROR: lib or function not found\n";
 		usage();
+	}
 
-	if (argc == 4) {
-		std::string arg = argv[3];
+	if (i < argc) {
+		std::string arg = argv[i++];
 
 		if (arg == "short")
 			len = TestLength::shortTest;
@@ -97,11 +141,19 @@ void Test::parseArgs(int argc, char** argv)
 	}
 
 	ftest->setLength(len);
+	ftest->sep = sep;
 }
 
 
 void Test::prepare()
 {
+	if (sep == "\t") {
+		dsep = sep + sep;
+		tsep = dsep + sep;
+		qsep = dsep + dsep;
+	} else
+		qsep = tsep = dsep = sep;
+
 	// load shared library
 	soHandle = dlopen(lib.c_str(), RTLD_NOW);
 	if (!soHandle)
@@ -129,7 +181,9 @@ void Test::runCompat()
 		int iterations = param->getIterations(len);
 		bool testResult;
 		int64_t nanos;
-		std::tie(testResult, nanos) = runTest(*test, iterations);
+		auto res = runTest(*test, iterations);
+		testResult = res.rc;
+		nanos = res.asm_nanos;
 
 		std::cout << test->getId() << "\t"
 			<< param->getCSVValues("\t") << "\t"
@@ -140,59 +194,56 @@ void Test::runCompat()
 	}
 }
 
-namespace {
-
-struct Aggr {
-	std::string id;
-	std::string values;
-	int iterations;
-	int64_t nanos;
-};
-
-}
 
 void Test::run()
 {
 	if (ftest->compat)
 		runCompat();
 
-	std::cout << "id\t\t\t\t" << ftest->headers()
-		<< "\titerations\tavgNanos" << std::endl;
+	std::cout << "id" << qsep << ftest->headers() << sep
+		<< "iterations" << sep;
+	if (vs)
+		std::cout << "avgNanosC" << sep << "avgNanosASM"
+			<< sep << "speedup" << std::endl;
+	else
+		std::cout << "avgNanos" << std::endl;
 
-	std::map<std::string, std::vector<Aggr>> aggrNanos;
+	std::map<std::string, std::vector<Test::Aggr>> aggrNanos;
 	while (ITest* test = ftest->nextTest()) {
 		int iterations = test->iterations(len);
 		std::string aggrId = test->aggrId();
-		bool testResult;
-		int64_t nanos;
-		std::tie(testResult, nanos) = runTest(*test, iterations);
+		auto res = runTest(*test, iterations);
 
-		if (aggrId.empty() || !testResult)
-			std::cout << test->id() << "\t" << test->values("\t\t") << "\t\t"
-				<< iterations << "\t\t" << nanos << '\n';
+		Aggr a = {test->id(), test->values(), iterations, res};
+		if (aggrId.empty() || !res.rc)
+			printResult(a);
 		else
-			aggrNanos[aggrId].push_back(
-				{test->id(), test->values("\t\t"), iterations, nanos});
+			aggrNanos[aggrId].push_back(a);
 
-		if (!testResult) {
+		if (!res.rc) {
 			std::cout << "FAILURE!\n";
 			return;
 		}
 
 		if (test->flush()) {
 			for (auto& p : aggrNanos) {
-				int64_t sum = 0;
-				int iters = 0;
-				int64_t nanos;
-				for (const auto& a : p.second) {
-					iters += a.iterations;
-					sum += a.nanos;
-				}
-				nanos = sum / p.second.size();
+				auto& vec = p.second;
+				Aggr aggr = vec.front();
+				aggr.iterations = 0;
+				Test::TestResult& res = aggr.res;
+				res = {true, 0, 0, 0};
 
-				auto a = p.second[0];
-				std::cout << a.id << "\t" << a.values << "\t\t"
-					<< iters << "\t\t" << nanos << '\n';
+				for (const auto& a : vec) {
+					aggr.iterations += a.iterations;
+					res.c_nanos += a.res.c_nanos;
+					res.asm_nanos += a.res.asm_nanos;
+					res.speedup += a.res.speedup;
+				}
+				res.c_nanos /= vec.size();
+				res.asm_nanos /= vec.size();
+				if (vs)
+					res.speedup /= vec.size();
+				printResult(aggr);
 			}
 			aggrNanos.clear();
 		}
@@ -200,37 +251,63 @@ void Test::run()
 }
 
 
-std::tuple<bool, int64_t> Test::runTest(ITest& test, int iterations)
+void Test::printResult(const Aggr& aggr) const
 {
-	int res;
-	struct timespec tp0, tp1;
-	int64_t nanos[iterations];
-	int64_t totalSum = 0;
-	int totalValidMeasures = 0;
-	bool verifyResult;
+	std::cout << aggr.id << sep << aggr.values << dsep
+		<< aggr.iterations << dsep;
+	if (vs)
+		std::cout << aggr.res.c_nanos << dsep;
+	std::cout << aggr.res.asm_nanos;
+	if (vs)
+		std::cout << dsep << aggr.res.speedup;
+	std::cout << '\n';
+}
 
-	for (int iteration = 0; iteration < iterations; iteration++) {
-		res = clock_gettime(CLOCK_MONOTONIC_PRECISE, &tp0);
-		test.run(func);
-		res |= clock_gettime(CLOCK_MONOTONIC_PRECISE, &tp1);
 
-		if (res != 0) {
-			std::cout << "clock_gettime() failed!\n";
-			exit(1);
+Test::TestResult Test::runTest(ITest& test, int iterations)
+{
+	TestResult tres;
+	int64_t nanos[2][iterations];
+
+	tres.c_nanos = 0;
+	tres.speedup = 0;
+	for (int j = 0, jn = vs? 2 : 1; j < jn; j++) {
+		std::function<void()> f;
+		if (j == 0)
+			f = std::bind(&ITest::run, &test, func);
+		else
+			f = std::bind(&ITest::runC, &test);
+		for (int i = 0; i < iterations; i++) {
+			int res;
+			struct timespec tp0, tp1;
+
+			res = clock_gettime(CLOCK_MONOTONIC_PRECISE, &tp0);
+			f();
+			res |= clock_gettime(CLOCK_MONOTONIC_PRECISE, &tp1);
+
+			if (res != 0) {
+				std::cout << "clock_gettime() failed!\n";
+				exit(1);
+			}
+
+			uint64_t nano0 = (1000000000LL * tp0.tv_sec) + tp0.tv_nsec;
+			uint64_t nano1 = (1000000000LL * tp1.tv_sec) + tp1.tv_nsec;
+			nanos[j][i] = nano1 - nano0;
+
+			if (i == 0)
+				tres.rc = test.verify();
 		}
 
-		uint64_t nano0 = (1000000000LL * tp0.tv_sec) + tp0.tv_nsec;
-		uint64_t nano1 = (1000000000LL * tp1.tv_sec) + tp1.tv_nsec;
-		nanos[totalValidMeasures++] = nano1 - nano0;
-		totalSum += (nano1 - nano0);
-
-		if (iteration == 0)
-			verifyResult = test.verify();
+		// get median
+		std::sort(nanos[j], nanos[j] + iterations);
+		int64_t *nanosptr = j == 0? &tres.asm_nanos : &tres.c_nanos;
+		*nanosptr = nanos[j][iterations / 2];
 	}
 
-	// return an approximation of the median
-	std::sort(nanos, nanos + totalValidMeasures);
-	return std::tie(verifyResult, nanos[totalValidMeasures / 2]);
+	if (vs)
+		tres.speedup = ((double)tres.c_nanos / tres.asm_nanos);
+
+	return tres;
 }
 
 

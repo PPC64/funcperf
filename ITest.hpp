@@ -12,6 +12,12 @@ public:
 	virtual ~ITest() {}
 	virtual std::string getId() = 0;
 	virtual void run(void* func) = 0;
+
+	virtual void runC()
+	{
+		throw std::logic_error("Unimplemented!");
+	}
+
 	virtual bool verify() = 0;
 
 	virtual std::string id() const
@@ -19,7 +25,7 @@ public:
 		throw std::logic_error("Unimplemented!");
 	}
 
-	virtual std::string values(const char* sep = "\t") const
+	virtual std::string values() const
 	{
 		throw std::logic_error("Unimplemented!");
 	}

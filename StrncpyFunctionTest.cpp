@@ -9,15 +9,15 @@ namespace string {
 class StrncpyTest : public ITest
 {
 public:
-	StrncpyTest(int b, int s, int d);
+	StrncpyTest(const std::string& sep, int b, int s, int d);
 
 	std::string id() const override
 	{
-		return "STRNCPY_" + values("_") + "_" + aggrId() +
-			(bytesToCopy > 1000? "" : "\t");
+		return "STRNCPY_" + values() + "_" + aggrId() +
+			(bytesToCopy < 1000 && sep == "\t"? sep : "");
 	}
 
-	std::string values(const char* sep) const override
+	std::string values() const override
 	{
 		std::ostringstream ss;
 		ss << bytesToCopy;
@@ -32,9 +32,11 @@ public:
 	}
 
 	void run(void* func) override;
+	void runC() override;
 	bool verify() override;
 
 private:
+	std::string sep;
 	int bytesToCopy;
 	int srcOffset;
 	int dstOffset;
@@ -52,7 +54,8 @@ static void initBuffer(std::unique_ptr<char[]> &buf, int sz, bool zero = false)
 		memset(buf.get(), 0, sz);
 }
 
-StrncpyTest::StrncpyTest(int b, int s, int d) :
+StrncpyTest::StrncpyTest(const std::string& sep, int b, int s, int d) :
+	sep(sep),
 	bytesToCopy(b),
 	srcOffset(s),
 	dstOffset(d)
@@ -104,6 +107,14 @@ void StrncpyTest::run(void* func)
 }
 
 
+void StrncpyTest::runC()
+{
+	strncpy(m_dstBuffer.get() + dstOffset,
+		m_srcBuffer.get() + srcOffset,
+		bytesToCopy);
+}
+
+
 bool StrncpyTest::verify()
 {
 	return memcmp(m_dstBuffer.get(), m_verifyBuffer.get(),
@@ -118,12 +129,14 @@ int StrncpyTest::iterations(TestLength length) const
 		return 1;
 
 	case TestLength::normalTest:
-		if (bytesToCopy < 256)
+		if (bytesToCopy < 1024)
 			return 2000;
+		else if (bytesToCopy < 100*1024)
+			return 500;
 		else if (bytesToCopy < 1024*1024)
-			return 2000;
-		else
 			return 100;
+		else
+			return 50;
 
 	case TestLength::longTest:
 		if (bytesToCopy < 256)
@@ -141,14 +154,14 @@ ITest* StrncpyFunctionTest::nextTest()
 	if (last)
 		return nullptr;
 
-	test.reset(new StrncpyTest(bytesToCopy, srcOffset, dstOffset));
+	test.reset(new StrncpyTest(sep, bytesToCopy, srcOffset, dstOffset));
 
 	if (++dstOffset == 8) {
 		dstOffset = 0;
 		if (++srcOffset == 8) {
 			srcOffset = 0;
 			bytesToCopy *= 2;
-			if (bytesToCopy > 8*1024*1024)
+			if (bytesToCopy > 4*1024*1024)
 				last = true;
 		}
 	}

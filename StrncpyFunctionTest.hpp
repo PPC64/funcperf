@@ -27,7 +27,7 @@ public:
 
 	std::string headers() override
 	{
-		return "bytesToCopy\tsrcOffset\tdstOffset";
+		return "bytesToCopy";
 	}
 
 	ITest* nextTest() override;

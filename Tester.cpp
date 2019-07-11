@@ -156,7 +156,7 @@ void Test::run()
 	if (ftest->compat)
 		runCompat();
 
-	std::cout << "id\t\t" << ftest->headers()
+	std::cout << "id\t\t\t\t" << ftest->headers()
 		<< "\titerations\tavgNanos" << std::endl;
 
 	std::map<std::string, std::vector<Aggr>> aggrNanos;
@@ -197,7 +197,6 @@ void Test::run()
 			aggrNanos.clear();
 		}
 	}
-
 }
 
 

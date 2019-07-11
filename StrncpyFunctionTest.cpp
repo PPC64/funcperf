@@ -13,13 +13,14 @@ public:
 
 	std::string id() const override
 	{
-		return "STRNCPY_" + values("_");
+		return "STRNCPY_" + values("_") + "_" + aggrId() +
+			(bytesToCopy > 1000? "" : "\t");
 	}
 
 	std::string values(const char* sep) const override
 	{
 		std::ostringstream ss;
-		ss << bytesToCopy << sep << srcOffset << sep << dstOffset;
+		ss << bytesToCopy;
 		return ss.str();
 	}
 
@@ -78,13 +79,13 @@ StrncpyTest::StrncpyTest(int b, int s, int d) :
 		bytesToCopy);
 
 	if (srcOffset == 0 && dstOffset == 0)
-		_aggrId = "both-aligned";
+		_aggrId = "aligned    ";
 	else if (srcOffset == 0)
-		_aggrId = "src-aligned";
+		_aggrId = "src_aligned";
 	else if (dstOffset == 0)
-		_aggrId = "dst-aligned";
+		_aggrId = "dst_aligned";
 	else
-		_aggrId = "misaligned";
+		_aggrId = "misaligned ";
 
 	if (srcOffset == 7 && dstOffset == 7)
 		_flush = true;

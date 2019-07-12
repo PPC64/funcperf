@@ -69,9 +69,7 @@ StrncpyTest::StrncpyTest(const std::string& sep, int b, int s, int d) :
 	// pattern fill src buffer
 	int i;
 	for (i = 0; i < bufsz - 1; i++) {
-		char c = i % 0xff;
-		if (c == 0)
-			c++;
+		char c = i % 0x7f + 32;
 		m_srcBuffer[i] = c;
 	}
 	m_srcBuffer[i] = 0;
@@ -117,8 +115,16 @@ void StrncpyTest::runC()
 
 bool StrncpyTest::verify()
 {
-	return memcmp(m_dstBuffer.get(), m_verifyBuffer.get(),
+	bool rc = memcmp(m_dstBuffer.get(), m_verifyBuffer.get(),
 		bytesToCopy + 8) == 0;
+
+	if (!rc) {
+		std::cout << "src=[" << m_srcBuffer.get() << "]\n";
+		std::cout << "dst=[" << m_dstBuffer.get() << "]\n";
+		std::cout << "ver=[" << m_verifyBuffer.get() << "]\n";
+	}
+
+	return rc;
 }
 
 
@@ -161,7 +167,7 @@ ITest* StrncpyFunctionTest::nextTest()
 		if (++srcOffset == 8) {
 			srcOffset = 0;
 			bytesToCopy *= 2;
-			if (bytesToCopy > 4*1024*1024)
+			if (bytesToCopy > 1024*1024)
 				last = true;
 		}
 	}

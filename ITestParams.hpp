@@ -21,6 +21,8 @@ public:
 
 	ITestParams() = default;
 
+	virtual ~ITestParams() = default;
+
 	virtual std::string getCSVHeaders(const std::string& sep)
 	{
 		return headers;

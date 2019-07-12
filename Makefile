@@ -1,4 +1,4 @@
-CXXFLAGS+=-std=c++14 -I${.CURDIR} -Wall -Werror
+CXXFLAGS+=-std=c++14 -I${.CURDIR} -Wall -Werror -g
 
 SRCS=Tester.cpp \
 	MemcpyFunctionTest.cpp MemcpyTestParams.cpp MemcpyTest.cpp \

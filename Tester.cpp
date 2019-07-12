@@ -294,7 +294,7 @@ Test::TestResult Test::runTest(ITest& test, int iterations)
 			uint64_t nano1 = (1000000000LL * tp1.tv_sec) + tp1.tv_nsec;
 			nanos[j][i] = nano1 - nano0;
 
-			if (i == 0)
+			if (i == 0 && j == 0)
 				tres.rc = test.verify();
 		}
 

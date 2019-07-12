@@ -9,18 +9,18 @@ namespace string {
 class StrncpyTest : public ITest
 {
 public:
-	StrncpyTest(const std::string& sep, int b, int s, int d);
+	StrncpyTest(const std::string& sep, int l, int s, int d, int n);
 
 	std::string id() const override
 	{
 		return "STRNCPY_" + values() + "_" + aggrId() +
-			(bytesToCopy < 1000 && sep == "\t"? sep : "");
+			(n < 1000 && sep == "\t"? sep : "");
 	}
 
 	std::string values() const override
 	{
 		std::ostringstream ss;
-		ss << bytesToCopy;
+		ss << n;
 		return ss.str();
 	}
 
@@ -37,9 +37,10 @@ public:
 
 private:
 	std::string sep;
-	int bytesToCopy;
+	int srcLen;
 	int srcOffset;
 	int dstOffset;
+	int n;
 
 	std::unique_ptr<char[]> m_srcBuffer;
 	std::unique_ptr<char[]> m_dstBuffer;
@@ -54,22 +55,23 @@ static void initBuffer(std::unique_ptr<char[]> &buf, int sz, bool zero = false)
 		memset(buf.get(), 0, sz);
 }
 
-StrncpyTest::StrncpyTest(const std::string& sep, int b, int s, int d) :
+StrncpyTest::StrncpyTest(const std::string& sep, int l, int s, int d, int n) :
 	sep(sep),
-	bytesToCopy(b),
+	srcLen(l),
 	srcOffset(s),
-	dstOffset(d)
+	dstOffset(d),
+	n(n)
 {
-	int bufsz = bytesToCopy + 8;
-
-	initBuffer(m_srcBuffer, bufsz);
-	initBuffer(m_dstBuffer, bufsz, true);
-	initBuffer(m_verifyBuffer, bufsz, true);
+	initBuffer(m_srcBuffer, srcLen + 8);
+	initBuffer(m_dstBuffer, n + 8, true);
+	initBuffer(m_verifyBuffer, n + 8, true);
 
 	// pattern fill src buffer
 	int i;
-	for (i = 0; i < bufsz - 1; i++) {
-		char c = i % 0x7f + 32;
+	for (i = 0; i < srcOffset; i++)
+		m_srcBuffer[i] = 0;
+	for (; i < srcLen + 7; i++) {
+		char c = i % 0x7f + 33;
 		m_srcBuffer[i] = c;
 	}
 	m_srcBuffer[i] = 0;
@@ -77,9 +79,11 @@ StrncpyTest::StrncpyTest(const std::string& sep, int b, int s, int d) :
 	// prepare verification buffer
 	strncpy(m_verifyBuffer.get() + dstOffset,
 		m_srcBuffer.get() + srcOffset,
-		bytesToCopy);
+		n);
 
-	if (srcOffset == 0 && dstOffset == 0)
+	if (srcLen != n)
+		_aggrId = "srcLen != n";
+	else if (srcOffset == 0 && dstOffset == 0)
 		_aggrId = "aligned    ";
 	else if (srcOffset == 0)
 		_aggrId = "src_aligned";
@@ -101,7 +105,7 @@ void StrncpyTest::run(void* func)
 
 	(*strncpy_func)(m_dstBuffer.get() + dstOffset,
 			m_srcBuffer.get() + srcOffset,
-			bytesToCopy);
+			n);
 }
 
 
@@ -109,19 +113,22 @@ void StrncpyTest::runC()
 {
 	strncpy(m_dstBuffer.get() + dstOffset,
 		m_srcBuffer.get() + srcOffset,
-		bytesToCopy);
+		n);
 }
 
 
 bool StrncpyTest::verify()
 {
 	bool rc = memcmp(m_dstBuffer.get(), m_verifyBuffer.get(),
-		bytesToCopy + 8) == 0;
+		n + 8) == 0;
 
 	if (!rc) {
-		std::cout << "src=[" << m_srcBuffer.get() << "]\n";
-		std::cout << "dst=[" << m_dstBuffer.get() << "]\n";
-		std::cout << "ver=[" << m_verifyBuffer.get() << "]\n";
+		std::cout << "strncpy(dst+" << dstOffset
+			<< ", src+" << srcOffset
+			<< ", " << n << ")\n";
+		std::cout << "src=[" << m_srcBuffer.get() + srcOffset << "]\n";
+		std::cout << "dst=[" << m_dstBuffer.get() + dstOffset << "]\n";
+		std::cout << "ver=[" << m_verifyBuffer.get() + dstOffset << "]\n";
 	}
 
 	return rc;
@@ -135,19 +142,19 @@ int StrncpyTest::iterations(TestLength length) const
 		return 1;
 
 	case TestLength::normalTest:
-		if (bytesToCopy < 1024)
+		if (n < 1024)
 			return 2000;
-		else if (bytesToCopy < 100*1024)
+		else if (n < 100*1024)
 			return 500;
-		else if (bytesToCopy < 1024*1024)
+		else if (n < 1024*1024)
 			return 100;
 		else
 			return 50;
 
 	case TestLength::longTest:
-		if (bytesToCopy < 256)
+		if (n < 256)
 			return 200000;
-		else if (bytesToCopy < 1024*1024)
+		else if (n < 1024*1024)
 			return 20000;
 		else
 			return 1000;
@@ -160,15 +167,18 @@ ITest* StrncpyFunctionTest::nextTest()
 	if (last)
 		return nullptr;
 
-	test.reset(new StrncpyTest(sep, bytesToCopy, srcOffset, dstOffset));
+	test.reset(new StrncpyTest(sep, srcLen(), srcOffset, dstOffset, n));
 
 	if (++dstOffset == 8) {
 		dstOffset = 0;
 		if (++srcOffset == 8) {
 			srcOffset = 0;
-			bytesToCopy *= 2;
-			if (bytesToCopy > 1024*1024)
-				last = true;
+			if (++srcLenI == 4) {
+				srcLenI = 0;
+				n *= 2;
+				if (n > 1024*1024)
+					last = true;
+			}
 		}
 	}
 

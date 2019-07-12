@@ -27,18 +27,25 @@ public:
 
 	std::string headers() override
 	{
-		return "bytesToCopy";
+		return "n";
 	}
 
 	ITest* nextTest() override;
 
 private:
-	int bytesToCopy = 2;
 	int srcOffset = 0;
 	int dstOffset = 0;
+	int n = 2;
+	int srcLenI = 0;
 
 	std::unique_ptr<ITest> test;
 	bool last = false;
+
+
+	int srcLen() const
+	{
+		return n / (4 -srcLenI);
+	}
 };
 
 }

@@ -191,12 +191,11 @@ void Test::run()
 					aggr.iterations += a.iterations;
 					res.c_nanos += a.res.c_nanos;
 					res.asm_nanos += a.res.asm_nanos;
-					res.speedup += a.res.speedup;
 				}
 				res.c_nanos /= vec.size();
 				res.asm_nanos /= vec.size();
 				if (vs)
-					res.speedup /= vec.size();
+					res.speedup = (double)res.c_nanos / res.asm_nanos;
 				printResult(aggr);
 			}
 			aggrNanos.clear();

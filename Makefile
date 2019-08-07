@@ -3,8 +3,7 @@ CXXFLAGS+=-std=c++14 -I${.CURDIR} -Wall -Werror -g
 SRCS=Tester.cpp \
 	MemcpyFunctionTest.cpp MemcpyTestParams.cpp MemcpyTest.cpp \
 	StrcpyFunctionTest.cpp \
-	StrncpyFunctionTest.cpp \
-	StrcmpFunctionTest.cpp StrcmpTestParams.cpp StrcmpTest.cpp
+	StrncpyFunctionTest.cpp
 
 OBJS:=${SRCS:S/.cpp/.o/}
 

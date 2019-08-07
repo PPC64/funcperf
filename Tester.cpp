@@ -21,7 +21,7 @@ using namespace funcperf::string;
 static bool vs = true;
 
 static const char* ids[] = {
-	"memcpy", "strcpy", "strncpy", "strcmp", NULL
+	"memcpy", "strcpy", "strncpy", NULL
 };
 
 static std::unique_ptr<IFunctionTest>
@@ -34,8 +34,6 @@ getFTest(const std::string& id)
 		return std::make_unique<StrcpyFunctionTest>();
 	else if (id == "strncpy")
 		return std::make_unique<StrncpyFunctionTest>();
-	else if (id == "strcmp")
-		return std::make_unique<StrcmpFunctionTest>();
 	else
 		return nullptr;
 }

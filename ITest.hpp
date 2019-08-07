@@ -15,25 +15,25 @@ public:
 
 	virtual void runC()
 	{
-		throw std::logic_error("Unimplemented!");
+		throw std::logic_error("runC: Unimplemented!");
 	}
 
 	virtual bool verify() = 0;
 
 	virtual std::string id() const
 	{
-		throw std::logic_error("Unimplemented!");
+		throw std::logic_error("id: Unimplemented!");
 	}
 
 	virtual std::string values() const
 	{
-		throw std::logic_error("Unimplemented!");
+		throw std::logic_error("values: Unimplemented!");
 	}
 
 
 	virtual int iterations(TestLength length) const
 	{
-		throw std::logic_error("Unimplemented!");
+		throw std::logic_error("iterations: Unimplemented!");
 	}
 
 	const std::string& aggrId() const

@@ -8,11 +8,37 @@
 namespace funcperf {
 namespace string {
 
-class StrcpyFunctionTest : public funcperf::IFunctionTest
+class StrcpyFunctionTest : public IFunctionTest
 {
 public:
-	std::vector<std::shared_ptr<funcperf::ITestParams>> getTestsParams();
-	std::shared_ptr<funcperf::ITest> getTest(const funcperf::ITestParams& testParams);
+	StrcpyFunctionTest() :
+		IFunctionTest(false)
+	{}
+
+	std::vector<std::shared_ptr<ITestParams>> getTestsParams() override
+	{
+		unimplemented();
+	}
+
+	std::shared_ptr<ITest> getTest(const ITestParams& testParams) override
+	{
+		unimplemented();
+	}
+
+	std::string headers() override
+	{
+		return "n";
+	}
+
+	ITest* nextTest() override;
+
+private:
+	int srcOffset = 0;
+	int dstOffset = 0;
+	int n = 2;
+
+	std::unique_ptr<ITest> test;
+	bool last = false;
 };
 
 }

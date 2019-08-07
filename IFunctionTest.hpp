@@ -28,13 +28,13 @@ public:
 
 	virtual std::string headers()
 	{
-		assertNotCompat();
+		assertNotCompat("headers");
 		unimplemented();
 	}
 
 	virtual ITest* nextTest()
 	{
-		assertNotCompat();
+		assertNotCompat("nextTest");
 		unimplemented();
 	}
 
@@ -43,10 +43,10 @@ public:
 protected:
 	TestLength len;
 
-	void assertNotCompat()
+	void assertNotCompat(const std::string& id)
 	{
-		if (!compat)
-			throw std::logic_error("!compat!");
+		if (compat)
+			throw std::logic_error(id + ": !compat!");
 	}
 
 	[[noreturn]] void unimplemented()

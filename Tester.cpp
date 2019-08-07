@@ -48,6 +48,7 @@ getFTest(const std::string& id)
 		"Flags:\n"
 		"--no-vs: do not compare against libC impl\n"
 		"--csv: output in .csv format\n"
+		"--func <name>: function name to use\n"
 		"\n"
 		"Possible values for 'testId':\n";
 	for (const char** id = ids; *id; id++)
@@ -99,6 +100,8 @@ private:
 
 void Test::parseArgs(int argc, char** argv)
 {
+	std::string afname;
+
 	if (argc < 3)
 		usage();
 
@@ -113,6 +116,10 @@ void Test::parseArgs(int argc, char** argv)
 		sep = ",";
 		i++;
 	}
+	if (argv[i] == std::string("--func")) {
+		i++;
+		afname = argv[i++];
+	}
 
 	lib = argv[i++];
 
@@ -121,6 +128,8 @@ void Test::parseArgs(int argc, char** argv)
 
 	fname = argv[i++];
 	ftest = getFTest(fname);
+	if (!afname.empty())
+		fname = afname;
 
 	if (!ftest || lib.empty()) {
 		std::cerr << "ERROR: lib or function not found\n";
@@ -197,10 +206,13 @@ void Test::runCompat()
 
 void Test::run()
 {
-	if (ftest->compat)
+	if (ftest->compat) {
+		vs = false;
 		runCompat();
+		return;
+	}
 
-	std::cout << "id" << qsep << ftest->headers() << sep
+	std::cout << "id" << qsep << ftest->headers() << dsep
 		<< "iterations" << sep;
 	if (vs)
 		std::cout << "avgNanosC" << sep << "avgNanosASM"
@@ -320,10 +332,15 @@ Test::~Test()
 
 int main(int argc, char** argv)
 {
-	Test test;
-	test.parseArgs(argc, argv);
-	test.prepare();
-	test.run();
+	try {
+		Test test;
+		test.parseArgs(argc, argv);
+		test.prepare();
+		test.run();
+	} catch (const std::exception& e) {
+		std::cerr << "Exception: " << e.what() << std::endl;
+		return 1;
+	}
 
 	return 0;
 }

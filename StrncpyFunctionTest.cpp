@@ -1,5 +1,7 @@
 #include "StrncpyFunctionTest.hpp"
 
+#include "Util.hpp"
+
 #include <cstring>
 #include <sstream>
 
@@ -47,13 +49,6 @@ private:
 	std::unique_ptr<char[]> m_verifyBuffer;
 };
 
-static void initBuffer(std::unique_ptr<char[]> &buf, int sz, bool zero = false)
-{
-	buf.reset(new char[sz]);
-	assert((uintptr_t)buf.get() % 8 == 0);
-	if (zero)
-		memset(buf.get(), 0, sz);
-}
 
 StrncpyTest::StrncpyTest(const std::string& sep, int l, int s, int d, int n) :
 	sep(sep),

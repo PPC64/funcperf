@@ -11,21 +11,7 @@ namespace string {
 class StrncpyFunctionTest : public IFunctionTest
 {
 public:
-	StrncpyFunctionTest() :
-		IFunctionTest(false)
-	{}
-
-	std::vector<std::shared_ptr<ITestParams>> getTestsParams() override
-	{
-		unimplemented();
-	}
-
-	std::shared_ptr<ITest> getTest(const ITestParams& testParams) override
-	{
-		unimplemented();
-	}
-
-	std::string headers() override
+	std::string headers() const override
 	{
 		return "n";
 	}

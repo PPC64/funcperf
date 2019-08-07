@@ -2,7 +2,6 @@
 #include "MemcpyFunctionTest.hpp"
 #include "StrcpyFunctionTest.hpp"
 #include "StrncpyFunctionTest.hpp"
-#include "StrcmpFunctionTest.hpp"
 
 #include <cstdint>
 #include <cstring>
@@ -174,42 +173,8 @@ void Test::prepare()
 }
 
 
-void Test::runCompat()
-{
-	bool printHeader = true;
-	for (const auto& param : ftest->getTestsParams()) {
-		if (printHeader) {
-			std::cout << "id\t" << param->getCSVHeaders("\t")
-				<< "\titerations\tavgNanos\ttestResult" << std::endl;
-			printHeader = false;
-		}
-
-		auto test = ftest->getTest(*param);
-		int iterations = param->getIterations(len);
-		bool testResult;
-		int64_t nanos;
-		auto res = runTest(*test, iterations);
-		testResult = res.rc;
-		nanos = res.asm_nanos;
-
-		std::cout << test->getId() << "\t"
-			<< param->getCSVValues("\t") << "\t"
-			<< iterations << "\t";
-		std::cout << nanos << "\t"
-			<< (testResult ? "SUCCESS" : "FAILURE")
-			<< std::endl;
-	}
-}
-
-
 void Test::run()
 {
-	if (ftest->compat) {
-		vs = false;
-		runCompat();
-		return;
-	}
-
 	std::cout << "id" << qsep << ftest->headers() << dsep
 		<< "iterations" << sep;
 	if (vs)

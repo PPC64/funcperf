@@ -8,11 +8,23 @@
 namespace funcperf {
 namespace string {
 
-class MemcpyFunctionTest : public funcperf::IFunctionTest
+class MemcpyFunctionTest : public IFunctionTest
 {
 public:
-	std::vector<std::shared_ptr<funcperf::ITestParams>> getTestsParams();
-	std::shared_ptr<funcperf::ITest> getTest(const funcperf::ITestParams& testParams);
+	std::string headers() const override
+	{
+		return "n";
+	}
+
+	ITest* nextTest() override;
+
+private:
+	int srcOffset = 0;
+	int dstOffset = 0;
+	int n = 2;
+
+	std::unique_ptr<ITest> test;
+	bool last = false;
 };
 
 }

@@ -1,10 +1,14 @@
 #pragma once
 
-#include "ITestParams.hpp"
-
 #include <string>
 
 namespace funcperf {
+
+enum class TestLength {
+	shortTest,
+	normalTest,
+	longTest
+};
 
 class ITest
 {

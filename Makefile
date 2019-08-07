@@ -9,11 +9,11 @@ OBJS:=${SRCS:S/.cpp/.o/}
 
 all: tester
 
-MemcpyFunctionTest.o: MemcpyFunctionTest.cpp MemcpyFunctionTest.hpp \
+MemcpyFunctionTest.o: MemcpyFunctionTest.cpp \
 	IFunctionTest.hpp ITest.hpp Util.hpp
-StrcpyFunctionTest.o: StrcpyFunctionTest.cpp StrcpyFunctionTest.hpp \
+StrcpyFunctionTest.o: StrcpyFunctionTest.cpp \
 	IFunctionTest.hpp ITest.hpp Util.hpp
-StrncpyFunctionTest.o: StrncpyFunctionTest.cpp StrncpyFunctionTest.hpp \
+StrncpyFunctionTest.o: StrncpyFunctionTest.cpp \
 	IFunctionTest.hpp ITest.hpp Util.hpp
 
 tester: ${OBJS}

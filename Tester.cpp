@@ -1,7 +1,4 @@
 #include "IFunctionTest.hpp"
-#include "MemcpyFunctionTest.hpp"
-#include "StrcpyFunctionTest.hpp"
-#include "StrncpyFunctionTest.hpp"
 
 #include <cstdint>
 #include <cstring>
@@ -14,28 +11,10 @@
 #include <dlfcn.h>
 
 using namespace funcperf;
-using namespace funcperf::string;
 
 
 static bool vs = true;
 
-static const char* ids[] = {
-	"memcpy", "strcpy", "strncpy", NULL
-};
-
-static std::unique_ptr<IFunctionTest>
-getFTest(const std::string& id)
-{
-
-	if (id == "memcpy")
-		return std::make_unique<MemcpyFunctionTest>();
-	else if (id == "strcpy")
-		return std::make_unique<StrcpyFunctionTest>();
-	else if (id == "strncpy")
-		return std::make_unique<StrncpyFunctionTest>();
-	else
-		return nullptr;
-}
 
 [[noreturn]] void usage()
 {
@@ -43,13 +22,13 @@ getFTest(const std::string& id)
 		"Usage: tester [flags] <libFilepath> <testId> [short|normal|long]\n"
 		"\n"
 		"Flags:\n"
-		"--no-vs: do not compare against libC impl\n"
+			"--no-vs: do not compare against libC impl\n"
 		"--csv: output in .csv format\n"
 		"--func <name>: function name to use\n"
 		"\n"
 		"Possible values for 'testId':\n";
-	for (const char** id = ids; *id; id++)
-		std::cerr << "\t" << *id << std::endl;
+	for (const auto& id : FunctionTestFactory::instance().ids())
+		std::cerr << "\t" << id << std::endl;
 	exit(1);
 }
 
@@ -124,7 +103,7 @@ void Test::parseArgs(int argc, char** argv)
 		usage();
 
 	fname = argv[i++];
-	ftest = getFTest(fname);
+	ftest = FunctionTestFactory::instance().getFTest(fname);
 	if (!afname.empty())
 		fname = afname;
 

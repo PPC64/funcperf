@@ -14,31 +14,14 @@ class ITest
 {
 public:
 	virtual ~ITest() {}
-	virtual std::string getId() = 0;
+
 	virtual void run(void* func) = 0;
-
-	virtual void runC()
-	{
-		throw std::logic_error("runC: Unimplemented!");
-	}
-
+	virtual void runC() = 0;
 	virtual bool verify() = 0;
 
-	virtual std::string id() const
-	{
-		throw std::logic_error("id: Unimplemented!");
-	}
-
-	virtual std::string values() const
-	{
-		throw std::logic_error("values: Unimplemented!");
-	}
-
-
-	virtual int iterations(TestLength length) const
-	{
-		throw std::logic_error("iterations: Unimplemented!");
-	}
+	virtual std::string id() const = 0;
+	virtual std::string values() const = 0;
+	virtual int iterations(TestLength length) const = 0;
 
 	const std::string& aggrId() const
 	{

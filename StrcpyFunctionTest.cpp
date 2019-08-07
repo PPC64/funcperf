@@ -1,12 +1,31 @@
-#include "StrcpyFunctionTest.hpp"
+#include "IFunctionTest.hpp"
 
 #include "Util.hpp"
 
 #include <cstring>
+#include <memory>
 #include <sstream>
 
 namespace funcperf {
-namespace string {
+
+class StrcpyFunctionTest : public IFunctionTest
+{
+public:
+	std::string headers() const override
+	{
+		return "n";
+	}
+
+	ITest* nextTest() override;
+
+private:
+	int srcOffset = 0;
+	int dstOffset = 0;
+	int n = 2;
+
+	std::unique_ptr<ITest> test;
+	bool last = false;
+};
 
 
 class StrcpyTest : public ITest
@@ -28,11 +47,6 @@ public:
 	}
 
 	int iterations(TestLength length) const override;
-
-	std::string getId() override
-	{
-		return id();
-	}
 
 	void run(void* func) override;
 	void runC() override;
@@ -172,5 +186,12 @@ ITest* StrcpyFunctionTest::nextTest()
 	return test.get();
 }
 
+static IFunctionTest* newStrcpyFunctionTest()
+{
+	return new StrcpyFunctionTest;
 }
+
+static int dummy = (FunctionTestFactory::instance()
+	.registerFunction("strcpy", newStrcpyFunctionTest), 1);
+
 }

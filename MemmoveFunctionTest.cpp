@@ -3,6 +3,8 @@
 #include "Util.hpp"
 
 #include <cstring>
+#include <iostream>
+#include <iomanip>
 #include <memory>
 #include <sstream>
 
@@ -192,8 +194,14 @@ bool MemmoveTest::verify()
 				<< ", src+" << srcOffset
 				<< ", " << n << ")\n";
 		std::cout << "overlap=" << overlap << std::endl;
-		std::cout << "src=[" << m_srcBuffer + srcOffset << "]\n";
-		std::cout << "dst=[" << m_dstBuffer + dstOffset << "]\n";
+		std::cout << "src=(0x" <<
+			std::hex << std::setfill('0') << std::setw(16) <<
+			(uintptr_t)m_srcBuffer + srcOffset << std::dec << ")[" <<
+			m_srcBuffer + srcOffset << "]\n";
+		std::cout << "dst=(0x" <<
+			std::hex << std::setfill('0') << std::setw(16) <<
+			(uintptr_t)m_dstBuffer + dstOffset << std::dec << ")[" <<
+			m_dstBuffer + dstOffset << "]\n";
 		std::cout << "ver=[" << m_verifyBuffer.get() + dstOffset << "]\n";
 	}
 

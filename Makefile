@@ -1,10 +1,11 @@
-CXXFLAGS+=-std=c++14 -I${.CURDIR} -Wall -Werror -g
+CXXFLAGS+=-std=c++14 -I${.CURDIR} -Wall -Werror -g -O0
 
 SRCS=Tester.cpp \
 	MemcpyFunctionTest.cpp \
 	MemmoveFunctionTest.cpp \
 	StrcpyFunctionTest.cpp \
-	StrncpyFunctionTest.cpp
+	StrncpyFunctionTest.cpp \
+	StrlenFunctionTest.cpp
 
 OBJS:=${SRCS:S/.cpp/.o/}
 
@@ -17,6 +18,8 @@ MemmoveFunctionTest.o: MemmoveFunctionTest.cpp \
 StrcpyFunctionTest.o: StrcpyFunctionTest.cpp \
 	IFunctionTest.hpp ITest.hpp Util.hpp
 StrncpyFunctionTest.o: StrncpyFunctionTest.cpp \
+	IFunctionTest.hpp ITest.hpp Util.hpp
+StrlenFunctionTest.o: StrlenFunctionTest.cpp \
 	IFunctionTest.hpp ITest.hpp Util.hpp
 
 tester: ${OBJS}
